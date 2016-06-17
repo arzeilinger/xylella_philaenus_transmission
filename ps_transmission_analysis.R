@@ -116,13 +116,22 @@ pdf("Ps_xfpop_binned_plot_2016-04-06.pdf")
 dev.off()
 
 
-##########################################################
-#### Chi.square test of Vector infection vs transmission
+##############################################################################
+#### Contingency table and Chi-square test of Vector and test plant infection status
 # Make a binary variable for vector infection
 psdata$vector.infected <- psdata$xf.pop
 # Turn vector.infected into a binary variable (1 = positive, 0 = negative)
 psdata$vector.infected[psdata$vector.infected > 0] <- 1
-table(psdata$vector.infected, psdata$infected)
+
+# Contingency table of vector and plant infection status
+# 1 = infected/PCR-positive; 0 = non-infected/PCR-negative
+table(psdata$vector.infected, psdata$infected, dnn = c("vector", "plant"))
+# Just vector infection status
+table(psdata$vector.infected)
+# Just test plant infection status
+table(psdata$infected)
+
+# Chi-square test of contingency table
 chisq.test(psdata$vector.infected, psdata$infected)
 
 
