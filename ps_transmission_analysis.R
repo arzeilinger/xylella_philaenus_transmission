@@ -1,5 +1,6 @@
-#### Daniele's Philaenus transmission study
-#### 2015-11-19
+#### Philaenus transmission study
+#### 2016-06-17
+#### Code written by Adam R. Zeilinger
 
 # Preliminaries
 rm(list = ls())
@@ -7,14 +8,14 @@ my.packages <- c("lme4", "lmerTest", "lattice", "MASS", "tidyr",
                  "dplyr", "nlme", "bbmle", "HH", 'RCurl', 'foreign')
 lapply(my.packages, require, character = TRUE)
 
-# Load data
+# Load data from Github repository
 url <- "https://raw.githubusercontent.com/arzeilinger/xylella_philaenus_transmission/master/SupplMat.csv"
 psdata <- getURL(url) %>% textConnection() %>% read.csv(., header = TRUE)
 str(psdata)
 
 
 ########################################################################
-#### Transmission probability
+#### Transmission probability vs. AAP, IAP, and Xylella populations in vectors
 #### Generalized linear mixed model, with source plant as random effect
 ## Model selection
 # Model with only AAP
@@ -26,13 +27,6 @@ psMod <- glmer(infected ~ log1p(xf.pop) + aap + iap + (1|source.plant), data = p
 # AIC model selection
 AICctab(psMod, psModaap, psModiap, nobs = nrow(psdata), base = TRUE) # psMod is best
 summary(psMod)
-
-
-# AAP/IAP model with source.plant as fixed effect
-# Set contrasts to "sum contrasts"
-options(contrasts = c("contr.sum", "contr.poly"))
-options("contrasts")
-options(contrasts = c("contr.treatment", "contr.poly"))
 
 
 ## Calculate proportion of non-infected test plants, for plotting
