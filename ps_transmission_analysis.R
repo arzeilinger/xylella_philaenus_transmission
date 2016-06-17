@@ -3,12 +3,13 @@
 
 # Preliminaries
 rm(list = ls())
-setwd("C:/Users/Adam/Documents/UC Berkeley post doc/Almeida lab/Daniele Philaenus study 2015")
-my.packages <- c("lme4", "lmerTest", "lattice", "MASS", "tidyr", "dplyr", "nlme", "bbmle", "HH")
+my.packages <- c("lme4", "lmerTest", "lattice", "MASS", "tidyr", 
+                 "dplyr", "nlme", "bbmle", "HH", 'RCurl', 'foreign')
 lapply(my.packages, require, character = TRUE)
 
 # Load data
-psdata <- read.csv("philaenus_data_qPCR.csv", header = TRUE)
+url <- "https://raw.githubusercontent.com/arzeilinger/xylella_philaenus_transmission/master/SupplMat.csv"
+psdata <- getURL(url) %>% textConnection() %>% read.csv(., header = TRUE)
 str(psdata)
 
 
@@ -32,9 +33,6 @@ summary(psMod)
 options(contrasts = c("contr.sum", "contr.poly"))
 options("contrasts")
 options(contrasts = c("contr.treatment", "contr.poly"))
-
-psModFixed <- glm(infected ~ log1p(xf.pop) + aap + iap + source.plant, data = psdata, family = "binomial")
-summary(psModFixed)
 
 
 ## Calculate proportion of non-infected test plants, for plotting
@@ -82,23 +80,6 @@ pdf("Ps_duration_results_2plots_2016-04-06.pdf")#,
 dev.off()
 
 
-# Exporting AAP and IAP figures as EPS
-
-
-# # Plot AAP and IAP results together
-# tiff("Ps_duration_results_plot_2016-01-14.tif")
-#   plot(jitter(psdata$aap), psdata$infected, col = "darkgreen",
-#        cex.axis = 1.3, cex.lab = 1.3, cex = 1.3,
-#        ylim = c(0,1), xlim = c(0,50),
-#        ylab = "Probability of transmission", xlab = "Duration (hrs)")
-#   rug(jitter(psdata$iap[psdata$infected == 0]), col = "blue", lwd = 1)
-#   rug(jitter(psdata$iap[psdata$infected == 1]), side = 3, col = "blue", lwd = 1)
-#   lines(smooth.spline(xv, pred.aap), col = "darkgreen", lwd = 2, lty = 1) # P(transmission) for AAP
-#   lines(smooth.spline(xv, pred.iap), col = "blue", lwd = 2, lty = 1) # P(transmission) for IAP
-#   legend(x = 0, y = 0.9, legend = c("IAP", "AAP"), col = c("blue", "darkgreen"),
-#          pch = c("|", "o"))
-# dev.off()
-
 #### Plotting Xf pop vs predicted transmission probability
 psdata$predy <- predict(psMod, type = "response", re.form = NA)
 psdata <- psdata[order(psdata$xf.pop),]
@@ -123,6 +104,7 @@ for(i in 1:length(xbin)){
 xfplot <- xfplot[!is.nan(xfplot$prop.inf),]
 # Make a new variable for the symbol expansion according to sample size of each bin
 xfplot$nlog <- round(log10(xfplot$n))+1
+# Shift values to median of binned intervals
 xfplot$nlog[xfplot$nlog == 0] <- 0.5
 
 pdf("Ps_xfpop_binned_plot_2016-04-06.pdf")
@@ -133,17 +115,9 @@ pdf("Ps_xfpop_binned_plot_2016-04-06.pdf")
   lines(smooth.spline(log(psdata$xf.pop+1), psdata$predy, nknots = 4, tol = 1e-6), lwd = 2)
 dev.off()
 
-tiff("Ps_xfpop_transmission_plot_2016-01-14.tif")
-  plot(log(psdata$xf.pop+1), psdata$predy,
-       cex.axis = 1.3, cex.lab = 1.3, cex = 1.3,
-       ylim = c(0,1), xlim = c(0,8),
-       ylab = "Probability of transmission", xlab = "Xylella population in vector (log transformed)")
-  lines(smooth.spline(log(psdata$xf.pop+1), psdata$predy, nknots = 4, tol = 1e-6), lwd = 2)
-dev.off()
-
 
 ##########################################################
-#### Vector infection vs transmission
+#### Chi.square test of Vector infection vs transmission
 # Make a binary variable for vector infection
 psdata$vector.infected <- psdata$xf.pop
 # Turn vector.infected into a binary variable (1 = positive, 0 = negative)
@@ -160,18 +134,18 @@ modelComparison <- function(data = psdata){
   mmMod <- nlme(log1p(xf.pop) ~ a*aap/(b+aap), fixed = (a+b ~ 1), 
               random = a+b ~ 1|source.plant, data = data,
               start = c(a = 8, b = 4))
-#   monoMod <- nlme(log1p(xf.pop) ~ a*(1-exp(-b*aap)), fixed = (a+b ~ 1), 
-#               random = a+b ~ 1|source.plant, data = data,
-#               start = c(a = 8, b = 4))
   aicComp <- AICctab(lmMod, mmMod, nobs = nrow(data), base = TRUE)
   resultsList <- list(aicComp, summary(lmMod), summary(mmMod), lmMod, mmMod)
   names(resultsList) <- c("AIC Comp", "Linear Model", "M-M Model", "Linear_Mod_Object", "MM_Mod_Object")
   return(resultsList)
 }
 
+# Run multi-model comparison for entire data set (PCR-positive and PCR-negative vectors)
 resultsFull <- modelComparison(data = psdata)
+
+# Run multi-model comparison for data set of only PCR-positive vectors
 results <- modelComparison(data = psdata[psdata$xf.pop > 0,])
-# MM model is best
+# MM model is best in bot cases
 
 ## Generating model fits from MM model
 
@@ -193,16 +167,21 @@ pdf("xf_population_results_plot_2016-04-06.pdf")
        xlab = "Acquisition access period (hr)")
   lines(xv, predMMFull, lwd = 2, lty = 1)
   lines(xv, predMM, lwd = 2, lty = 2)
-  #abline(a = a, b = b, lwd = 2)
 dev.off()
 
 
 #### Evaluating fit of MM models
-psdata$mmFullPred <- predict(resultsFull[["MM_Mod_Object"]])
+# Full data set
+psdata$mmFullPred <- predict(resultsFull[["MM_Mod_Object"]]) # Generate Xylella population predictions
 summary(lm(log1p(xf.pop) ~ mmFullPred, data = psdata))
-plot(x = psdata$mmFullPred, y = log1p(psdata$xf.pop))
+plot(x = psdata$mmFullPred, y = log1p(psdata$xf.pop),
+     xlab = "Predicted Xylella populations",
+     ylab = "Observed Xylella populations")
 
+# Only PCR-positive ("infected") vectors
 infpsData <- psdata[psdata$xf.pop > 0,]
-infpsData$mmPred <- predict(results[["MM_Mod_Object"]])
-plot(x = infpsData$mmPred, y = log1p(infpsData$xf.pop))
+infpsData$mmPred <- predict(results[["MM_Mod_Object"]]) # Generate Xylella population predictions
 summary(lm(log1p(xf.pop) ~ mmPred, data = infpsData))
+plot(x = infpsData$mmPred, y = log1p(infpsData$xf.pop),
+     xlab = "Predicted Xylella populations",
+     ylab = "Observed Xylella populations")
