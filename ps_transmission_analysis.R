@@ -55,7 +55,7 @@ pred.iap <- predict(psModPlots, newdata = xiap, type = "response", re.form = NA)
 
 
 # Plot AAP and IAP results separately
-pdf("Ps_duration_results_2plots_2016-04-06.pdf")#,
+tiff("Figure_1_Ps_duration_results_2plots.tif")#,
      #width = 76*2, height = 76, units = "mm", res = 600, compression = "lzw")
   par(mfrow=c(2,2))
   plot(propInfectedAAP$aap, propInfectedAAP$prop.inf, 
@@ -101,7 +101,7 @@ xfplot$nlog <- round(log10(xfplot$n))+1
 # Shift values to median of binned intervals
 xfplot$nlog[xfplot$nlog == 0] <- 0.5
 
-pdf("Ps_xfpop_binned_plot_2016-04-06.pdf")
+tiff("Figure_2_Ps_xfpop_binned_plot.tif")
   plot(x = xfplot$xbin+0.5, y = xfplot$prop.inf, 
        cex.axis = 1.3, cex.lab = 1.3, cex = xfplot$nlog,
        ylim = c(0,1), xlim = c(0,8), pch = 16,
@@ -162,12 +162,12 @@ ahat <- as.numeric(fixef(results[["M-M Model"]]))[1]
 bhat <- as.numeric(fixef(results[["M-M Model"]]))[2]
 predMM <- ahat*xv/(bhat+xv)
 
-pdf("xf_population_results_plot_2016-04-06.pdf")
+tiff("Figure_3_xf_population_results_plot.tif")
   plot(jitter(psdata$aap, amount = 0), jitter(log1p(psdata$xf.pop), amount = 0),
        cex.axis = 1.3, cex.lab = 1.3, cex = 1.3,
        xlim = c(0,50), ylim = c(0, 8),
        ylab = "Xylella population in vector (ln transformed)",
-       xlab = "Acquisition access period (hr)")
+       xlab = "Time after beginning of aquisition access period (hr)")
   lines(xv, predMMFull, lwd = 2, lty = 1)
   lines(xv, predMM, lwd = 2, lty = 2)
 dev.off()
