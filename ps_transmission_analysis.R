@@ -196,3 +196,68 @@ summary(lm(log1p(xf.pop) ~ mmPred, data = infpsData))
 plot(x = infpsData$mmPred, y = log1p(infpsData$xf.pop),
      xlab = "Predicted Xylella populations",
      ylab = "Observed Xylella populations")
+
+
+#################################################################################
+#### Total latent time vs. xf populations
+#### total latent time = AAP + IAP
+psdata$latent.time <- psdata$aap + psdata$iap
+
+modelComparisonLatent <- function(data = psdata){
+  lmMod <- lme(log1p(xf.pop) ~ latent.time, random = ~ 1|source.plant, data = data)
+  mmMod <- nlme(log1p(xf.pop) ~ a*latent.time/(b+latent.time), fixed = (a+b ~ 1), 
+              random = a+b ~ 1|source.plant, data = data,
+              start = c(a = 8, b = 4))
+  aicComp <- AICctab(lmMod, mmMod, nobs = nrow(data), base = TRUE)
+  resultsList <- list(aicComp, summary(lmMod), summary(mmMod), lmMod, mmMod)
+  names(resultsList) <- c("AIC Comp", "Linear Model", "M-M Model", "Linear_Mod_Object", "MM_Mod_Object")
+  return(resultsList)
+}
+
+# Run multi-model comparison for entire data set (PCR-positive and PCR-negative vectors)
+resultsFull <- modelComparisonLatent(data = psdata)
+
+# Run multi-model comparison for data set of only PCR-positive vectors
+results <- modelComparisonLatent(data = psdata[psdata$xf.pop > 0,])
+# MM model is best in bot cases
+
+## Generating model fits from MM model
+
+xv <- sort(runif(100, min = 0, max = max(psdata$latent.time, na.rm = TRUE)))
+# model fit with 0's
+ahatFull <- as.numeric(fixef(resultsFull[["M-M Model"]]))[1]
+bhatFull <- as.numeric(fixef(resultsFull[["M-M Model"]]))[2]
+predMMFull <- ahatFull*xv/(bhatFull+xv)
+# model fit without 0's
+ahat <- as.numeric(fixef(results[["M-M Model"]]))[1]
+bhat <- as.numeric(fixef(results[["M-M Model"]]))[2]
+predMM <- ahat*xv/(bhat+xv)
+
+#tiff("xf_population_vs_latent_period_plot.tif")
+trellis.device()
+  plot(jitter(psdata$latent.time, amount = 0), jitter(log1p(psdata$xf.pop), amount = 0),
+       cex.axis = 1.3, cex.lab = 1.3, cex = 1.3,
+       xlim = c(40, 100), ylim = c(0, 8),
+       ylab = "Xylella population in vector (ln transformed)",
+       xlab = "Time after beginning of aquisition access period (hr)")
+  lines(xv, predMMFull, lwd = 2, lty = 1)
+  lines(xv, predMM, lwd = 2, lty = 2)
+export.eps("Figure_3_xf_population_latent_time_plot.eps")
+#dev.off()
+
+
+#### Evaluating fit of MM models
+# Full data set
+psdata$mmFullPred <- predict(resultsFull[["MM_Mod_Object"]]) # Generate Xylella population predictions
+summary(lm(log1p(xf.pop) ~ mmFullPred, data = psdata))
+plot(x = psdata$mmFullPred, y = log1p(psdata$xf.pop),
+     xlab = "Predicted Xylella populations",
+     ylab = "Observed Xylella populations")
+
+# Only PCR-positive ("infected") vectors
+infpsData <- psdata[psdata$xf.pop > 0,]
+infpsData$mmPred <- predict(results[["MM_Mod_Object"]]) # Generate Xylella population predictions
+summary(lm(log1p(xf.pop) ~ mmPred, data = infpsData))
+plot(x = infpsData$mmPred, y = log1p(infpsData$xf.pop),
+     xlab = "Predicted Xylella populations",
+     ylab = "Observed Xylella populations")
