@@ -2,8 +2,11 @@
 #### 2016-06-17
 #### Code written by Adam R. Zeilinger
 
-# Preliminaries
+#### Preliminaries
+# Clear workspace
 rm(list = ls())
+
+# Load required packages
 my.packages <- c("lme4", "lmerTest", "lattice", "MASS", "tidyr", 
                  "dplyr", "nlme", "bbmle", "HH", 'RCurl', 'foreign')
 lapply(my.packages, require, character = TRUE)
@@ -55,8 +58,9 @@ pred.iap <- predict(psModPlots, newdata = xiap, type = "response", re.form = NA)
 
 
 # Plot AAP and IAP results separately
-tiff("Figure_1_Ps_duration_results_2plots.tif")#,
+pdf("Figure_1_Ps_duration_results_2plots.pdf")#,
      #width = 76*2, height = 76, units = "mm", res = 600, compression = "lzw")
+#trellis.device()
   par(mfrow=c(2,2))
   plot(propInfectedAAP$aap, propInfectedAAP$prop.inf, 
        col = "black", pch = 16,
@@ -71,8 +75,8 @@ tiff("Figure_1_Ps_duration_results_2plots.tif")#,
        ylab = "", 
        xlab = "Inoculation access period (hr)")
   lines(smooth.spline(xv, pred.iap))
+#export.eps("Figure_1_Ps_duration_results_2plots.eps", width = 10, height = 7)
 dev.off()
-
 
 #### Plotting Xf pop vs predicted transmission probability
 psdata$predy <- predict(psMod, type = "response", re.form = NA)
@@ -101,13 +105,15 @@ xfplot$nlog <- round(log10(xfplot$n))+1
 # Shift values to median of binned intervals
 xfplot$nlog[xfplot$nlog == 0] <- 0.5
 
-tiff("Figure_2_Ps_xfpop_binned_plot.tif")
+#tiff("Figure_2_Ps_xfpop_binned_plot.tif")
+trellis.device()
   plot(x = xfplot$xbin+0.5, y = xfplot$prop.inf, 
        cex.axis = 1.3, cex.lab = 1.3, cex = xfplot$nlog,
        ylim = c(0,1), xlim = c(0,8), pch = 16,
        ylab = "Proportion of plants infected", xlab = "Xylella population in vector (ln transformed)")
   lines(smooth.spline(log(psdata$xf.pop+1), psdata$predy, nknots = 4, tol = 1e-6), lwd = 2)
-dev.off()
+export.eps("Figure_2_Ps_xfpop_binned_plot.eps")
+#dev.off()
 
 
 ##############################################################################
@@ -162,7 +168,8 @@ ahat <- as.numeric(fixef(results[["M-M Model"]]))[1]
 bhat <- as.numeric(fixef(results[["M-M Model"]]))[2]
 predMM <- ahat*xv/(bhat+xv)
 
-tiff("Figure_3_xf_population_results_plot.tif")
+#tiff("Figure_3_xf_population_results_plot.tif")
+trellis.device()
   plot(jitter(psdata$aap, amount = 0), jitter(log1p(psdata$xf.pop), amount = 0),
        cex.axis = 1.3, cex.lab = 1.3, cex = 1.3,
        xlim = c(0,50), ylim = c(0, 8),
@@ -170,7 +177,8 @@ tiff("Figure_3_xf_population_results_plot.tif")
        xlab = "Time after beginning of aquisition access period (hr)")
   lines(xv, predMMFull, lwd = 2, lty = 1)
   lines(xv, predMM, lwd = 2, lty = 2)
-dev.off()
+export.eps("Figure_3_xf_population_results_plot.eps")
+#dev.off()
 
 
 #### Evaluating fit of MM models
